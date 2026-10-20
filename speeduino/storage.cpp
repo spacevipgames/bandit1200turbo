@@ -33,7 +33,19 @@ A full copy of the license may be found in the projects root directory
 #define EEPROM_CALIBRATION_O2_BINS    (EEPROM_CALIBRATION_O2_VALUES-sizeof(o2Calibration_bins))
 #define EEPROM_LAST_BARO              (EEPROM_CALIBRATION_O2_BINS-1)
 
-static_assert((EEPROM_CONFIG2_END - EEPROM_CONFIG2_START + 1U) >= sizeof(config2), "config2 storage exceeds allocated EEPROM space");
+static_assert((EEPROM_CONFIG2_END - EEPROM_CONFIG2_START) >= sizeof(config2), "config2 storage exceeds allocated EEPROM space");
+static_assert((EEPROM_CONFIG4_END - EEPROM_CONFIG4_START) >= sizeof(config4), "config4 storage exceeds allocated EEPROM space");
+static_assert((EEPROM_CONFIG6_END - EEPROM_CONFIG6_START) >= sizeof(config6), "config6 storage exceeds allocated EEPROM space");
+static_assert((EEPROM_CONFIG9_END - EEPROM_CONFIG9_START) >= sizeof(config9), "config9 storage exceeds allocated EEPROM space");
+static_assert((EEPROM_CONFIG10_END - EEPROM_CONFIG10_START) >= sizeof(config10), "config10 storage exceeds allocated EEPROM space");
+static_assert((EEPROM_CONFIG13_END - EEPROM_CONFIG13_START) >= sizeof(config13), "config13 storage exceeds allocated EEPROM space");
+static_assert((EEPROM_CONFIG15_END - EEPROM_CONFIG15_START) >= sizeof(config15), "config15 storage exceeds allocated EEPROM space");
+// Config & tables must end before the calibration CRCs. Trim tables 5-8 (only without MOTO_PROFILE_SHARE_UNUSED_TABLES) go last.
+#if MOTO_PROFILE_SHARE_UNUSED_TABLES
+static_assert(EEPROM_CONFIG15_END <= EEPROM_CALIBRATION_CLT_CRC, "EEPROM data overlaps calibration area");
+#else
+static_assert(EEPROM_CONFIG8_END <= EEPROM_CALIBRATION_CLT_CRC, "16-bit table axes: trim tables 5-8 do not fit in EEPROM, enable MOTO_PROFILE_SHARE_UNUSED_TABLES");
+#endif
 
 uint32_t deferEEPROMWritesUntil = 0;
 
@@ -128,10 +140,13 @@ static inline write_location write(table_value_iterator it, write_location locat
 
 static inline write_location write(table_axis_iterator it, write_location location)
 {
-  const table3d_axis_io_converter converter = get_table3d_axis_converter(it.get_domain());
   while (location.can_write() && !it.at_end())
   {
-    location.update(converter.to_byte(*it));
+    // Little endian, same as the TunerStudio page
+    // Both bytes of an element are always written together
+    location.update(table3d_axis_get_byte(*it, 0U));
+    ++location;
+    location.update(table3d_axis_get_byte(*it, 1U));
     ++location;
     ++it;
   }
@@ -393,11 +408,12 @@ static inline eeprom_address_t load(table_value_iterator it, eeprom_address_t ad
 
 static inline eeprom_address_t load(table_axis_iterator it, eeprom_address_t address)
 {
-    const table3d_axis_io_converter converter = get_table3d_axis_converter(it.get_domain());
   while (!it.at_end())
   {
-    *it = converter.from_byte(EEPROM.read(address));
-    ++address;
+    const byte low = EEPROM.read(address);
+    const byte high = EEPROM.read(address+1U);
+    *it = table3d_axis_from_bytes(low, high);
+    address += table3d_axis_io_size;
     ++it;
   }
   return address;    

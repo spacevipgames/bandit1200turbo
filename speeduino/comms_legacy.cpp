@@ -643,7 +643,7 @@ void legacySerialHandler(byte cmd, Stream &targetPort, SerialStatus &targetStatu
       break;
 
     case 'Q': // send code version
-      targetPort.print(F("speeduino 202501"));
+      targetPort.print(F("speeduino 202501-D1"));
       break;
 
     case 'r': //New format for the optimised OutputChannels
@@ -906,10 +906,10 @@ namespace {
 
   inline void send_table_axis(table_axis_iterator it)
   {
-    const table3d_axis_io_converter converter = get_table3d_axis_converter(it.get_domain());
     while (!it.at_end())
     {
-      primarySerial.write(converter.to_byte(*it));
+      primarySerial.write(table3d_axis_get_byte(*it, 0U));
+      primarySerial.write(table3d_axis_get_byte(*it, 1U));
       ++it;
     }
   }
@@ -994,7 +994,7 @@ namespace {
   }
   #define serial_print_space_delimited_array(array) serial_print_space_delimited(array, _end_range_address(array))
 
-  void serial_print_prepadding(byte value)
+  void serial_print_prepadding(int16_t value)
   {
     if (value < 100)
     {
@@ -1006,7 +1006,7 @@ namespace {
     }
   }
 
-  void serial_print_prepadded_value(byte value)
+  void serial_print_prepadded_value(int16_t value)
   {
       serial_print_prepadding(value);
       primarySerial.print(value);
@@ -1015,7 +1015,7 @@ namespace {
 
   void print_row(const table_axis_iterator &y_it, table_row_iterator row)
   {
-    serial_print_prepadded_value(get_table3d_axis_converter(y_it.get_domain()).to_byte(*y_it));
+    serial_print_prepadded_value(*y_it);
 
     while (!row.at_end())
     {
@@ -1030,11 +1030,9 @@ namespace {
     primarySerial.print(F("    "));
 
     auto x_it = x_begin(pTable, key);
-    const table3d_axis_io_converter converter = get_table3d_axis_converter(x_it.get_domain());
-
     while(!x_it.at_end())
     {
-      serial_print_prepadded_value(converter.to_byte(*x_it));
+      serial_print_prepadded_value(*x_it);
       ++x_it;
     }
   }

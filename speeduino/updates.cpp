@@ -18,7 +18,7 @@
 
 void doUpdates(void)
 {
-  #define CURRENT_DATA_VERSION    25
+  #define CURRENT_DATA_VERSION    26
   //Only the latest update for small flash devices must be retained
    #ifndef SMALL_FLASH_MODE
 
@@ -799,6 +799,22 @@ void doUpdates(void)
 
     writeAllConfig();
     storeEEPROMVersion(25);
+  }
+
+  // Version 26: "DIV 1". 3D table axes are now 16 bit in both the TunerStudio pages and the EEPROM
+  // (the old 8 bit RPM/100 and load/2 scaling is gone), so the whole EEPROM layout moved.
+  // The old contents cannot be read at the new addresses, so start from a blank configuration.
+  // A tune has to be loaded again from TunerStudio (using the matching .ini).
+  if(readEEPROMVersion() == 25)
+  {
+    for(uint8_t page=1U; page<getPageCount(); ++page)
+    {
+      const uint16_t pageSize = getPageSize(page);
+      for(uint16_t offset=0U; offset<pageSize; ++offset) { setPageValue(page, offset, 0U); }
+    }
+    // Force the first-run path in init (default pin mapping) as pinMapping is now zero
+    do { writeAllConfig(); } while(isEepromWritePending());
+    storeEEPROMVersion(26);
   }
   
   //Final check is always for 255 and 0 (Brand new arduino)

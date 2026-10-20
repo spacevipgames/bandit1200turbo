@@ -68,7 +68,7 @@ static constexpr byte serialVersion[] PROGMEM = {SERIAL_RC_OK, '0', '0', '2'};
 static constexpr byte canId[] PROGMEM = {SERIAL_RC_OK, 0};
 //static constexpr byte codeVersion[] PROGMEM = { SERIAL_RC_OK, 's','p','e','e','d','u','i','n','o',' ','2','0','2','4','0','5','-','d','e','v'} ; //Note no null terminator in array and status variable at the start
 //static constexpr byte productString[] PROGMEM = { SERIAL_RC_OK, 'S', 'p', 'e', 'e', 'd', 'u', 'i', 'n', 'o', ' ', '2', '0', '2', '4', '.', '0', '5', '-', 'd', 'e', 'v'};
-static constexpr byte codeVersion[] PROGMEM = { SERIAL_RC_OK, 's','p','e','e','d','u','i','n','o',' ','2','0','2','5','0','1'} ; //Note no null terminator in array and status variable at the start
+static constexpr byte codeVersion[] PROGMEM = { SERIAL_RC_OK, 's','p','e','e','d','u','i','n','o',' ','2','0','2','5','0','1','-','D','1'} ; //Note no null terminator in array and status variable at the start. '-D1': 16-bit table axes (DIV 1)
 static constexpr byte productString[] PROGMEM = { SERIAL_RC_OK, 'S', 'p', 'e', 'e', 'd', 'u', 'i', 'n', 'o', ' ', '2', '0', '2', '5', '.', '0', '1', '.','7'};
 static constexpr byte testCommsResponse[] PROGMEM = { SERIAL_RC_OK, 255 };
 /// @}

@@ -24,7 +24,9 @@
 //  2. Offset to intra-entity byte
 
 // Page sizes as defined in the .ini file
-constexpr const uint16_t PROGMEM ini_page_sizes[] = { 0, 129, 288, 288, 128, 288, 128, 240, 384, 220, 197, 288, 192, 128, 288, 256};
+// Table axes are 16-bit (2 bytes per element, see table3d_axis_io.h), so every page that
+// holds 3D tables is larger than in stock Speeduino.
+constexpr const uint16_t PROGMEM ini_page_sizes[] = { 0, 129, 320, 320, 128, 320, 128, 288, 480, 220, 197, 320, 224, 128, 320, 272};
 
 // ========================= Table size calculations =========================
 // Note that these should be computed at compile time, assuming the correct
@@ -38,12 +40,12 @@ static inline constexpr uint16_t get_table_value_end(void)
 template <class table_t>
 static inline constexpr uint16_t get_table_axisx_end(void)
 {
-  return get_table_value_end<table_t>()+table_t::xaxis_t::length;
+  return get_table_value_end<table_t>()+(table_t::xaxis_t::length*table3d_axis_io_size);
 }
 template <class table_t>
 static inline constexpr uint16_t get_table_axisy_end(const table_t *)
 {
-  return get_table_axisx_end<table_t>()+table_t::yaxis_t::length;
+  return get_table_axisx_end<table_t>()+(table_t::yaxis_t::length*table3d_axis_io_size);
 }
 
 // ========================= Intra-table offset to byte class =========================
@@ -80,10 +82,10 @@ public:
       case table_location_values:
         return get_value_value();
       case table_location_xaxis:
-        return get_table3d_axis_converter(table_t::xaxis_t::domain).to_byte(get_xaxis_value());
+        return table3d_axis_get_byte(get_xaxis_value(), get_xaxis_byte_index());
       case table_location_yaxis:
       default:
-        return get_table3d_axis_converter(table_t::yaxis_t::domain).to_byte(get_yaxis_value());
+        return table3d_axis_get_byte(get_yaxis_value(), get_yaxis_byte_index());
     }
   }
 
@@ -97,12 +99,12 @@ public:
         break;
 
       case table_location_xaxis:
-        get_xaxis_value() = get_table3d_axis_converter(table_t::xaxis_t::domain).from_byte(new_value);
+        get_xaxis_value() = table3d_axis_set_byte(get_xaxis_value(), get_xaxis_byte_index(), new_value);
         break;
 
       case table_location_yaxis:
       default:
-        get_yaxis_value() = get_table3d_axis_converter(table_t::yaxis_t::domain).from_byte(new_value);
+        get_yaxis_value() = table3d_axis_set_byte(get_yaxis_value(), get_yaxis_byte_index(), new_value);
     }
     invalidate_cache(&_pTable->get_value_cache);
     return *this;
@@ -115,14 +117,24 @@ private:
     return _pTable->values.value_at((uint8_t)_table_offset);
   }
 
+  // Axis elements are table3d_axis_io_size (2) bytes each, little endian: 
+  // the element is offset/2, the byte within that element is offset%2.
   inline table3d_axis_t& get_xaxis_value(void) const
   {
-    return *(_pTable->axisX.begin().advance(_table_offset - get_table_value_end<table_t>()));
+    return *(_pTable->axisX.begin().advance((_table_offset - get_table_value_end<table_t>()) / table3d_axis_io_size));
+  }
+  inline uint8_t get_xaxis_byte_index(void) const
+  {
+    return (uint8_t)((_table_offset - get_table_value_end<table_t>()) % table3d_axis_io_size);
   }
 
   inline table3d_axis_t& get_yaxis_value(void) const
   {
-    return *(_pTable->axisY.begin().advance(_table_offset - get_table_axisx_end<table_t>()));
+    return *(_pTable->axisY.begin().advance((_table_offset - get_table_axisx_end<table_t>()) / table3d_axis_io_size));
+  }
+  inline uint8_t get_yaxis_byte_index(void) const
+  {
+    return (uint8_t)((_table_offset - get_table_axisx_end<table_t>()) % table3d_axis_io_size);
   }
 
   enum table_location {
@@ -357,7 +369,7 @@ page_iterator_t map_page_offset_to_entity(uint8_t pageNumber, uint16_t offset)
       CHECK_TABLE(seqFuelPage, offset, &trim2Table, 1)
       CHECK_TABLE(seqFuelPage, offset, &trim3Table, 2)
       CHECK_TABLE(seqFuelPage, offset, &trim4Table, 3)
-      CHECK_GAP(seqFuelPage, offset, 192U, 4)
+      CHECK_GAP(seqFuelPage, offset, 240U, 4)
       END_OF_PAGE(seqFuelPage, 5)
     }
 

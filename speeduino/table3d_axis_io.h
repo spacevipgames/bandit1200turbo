@@ -14,40 +14,33 @@
 /** @brief Byte type. This is not defined in any C or C++ standard header. */
 typedef uint8_t byte;
 
-/** @brief Models int16->byte conversion 
- * @see table3d_axis_io_converter 
- */
-typedef byte(*pToByteConverter)(int16_t value);
-
-/** @brief Models byte->int16 conversion
- * @see table3d_axis_io_converter 
- */
-typedef int16_t(*pFromByteConverter)(byte in);
-
-/** @brief Convert a 16-bit value to/from a byte. Useful for I/O. 
+/** @brief Number of bytes each axis element occupies on the wire (TunerStudio page) and in EEPROM.
  *
- * Often we need to deal internally with values that fit in 16-bits but do
- * not require much accuracy. E.g. table axes in RPM. For these values we can 
- * save storage space (EEPROM) by scaling to/from 8-bits.
+ * Axis values are stored at full 16-bit resolution (little endian) in every domain
+ * (RPM in rpm, load in 0.5 kPa/% units, ...). There is no scaling: what is in RAM is
+ * what is sent/stored. This replaces the old 8-bit scheme that divided RPM by 100 
+ * and load by 2.
  */
-struct table3d_axis_io_converter {
-    pToByteConverter to_byte;
-    pFromByteConverter from_byte;
-};
+static constexpr uint8_t table3d_axis_io_size = (uint8_t)sizeof(table3d_axis_t);
+static_assert(table3d_axis_io_size==2U, "Axis I/O code assumes 16-bit axis elements");
 
-/**
- * @brief Obtain a converter instance for a given axis domain.
- * 
- * Often we need to deal internally with values that fit in 16-bits but do
- * not require much accuracy. E.g. RPM. For these values we can 
- * save storage space (EEPROM) by scaling to/from 8-bits.
- * 
- * The converter is dependent on the domain. I.e all axes with the same domain use 
- * the same converter 
- * 
- * Conversion during I/O is orthogonal to other axis concerns, so is separated and
- * encapsulated here.
- */
-table3d_axis_io_converter get_table3d_axis_converter(axis_domain domain);
+/** @brief Get the low (byte_index==0) or high (byte_index==1) byte of an axis value */
+static inline byte table3d_axis_get_byte(table3d_axis_t value, uint8_t byte_index)
+{
+    return (byte)(((uint16_t)value >> (8U*byte_index)) & 0xFFU);
+}
+
+/** @brief Set the low (byte_index==0) or high (byte_index==1) byte of an axis value */
+static inline table3d_axis_t table3d_axis_set_byte(table3d_axis_t value, uint8_t byte_index, byte new_byte)
+{
+    const uint16_t mask = (uint16_t)(0xFFU << (8U*byte_index));
+    return (table3d_axis_t)(((uint16_t)value & (uint16_t)~mask) | (uint16_t)((uint16_t)new_byte << (8U*byte_index)));
+}
+
+/** @brief Assemble an axis value from its low & high bytes */
+static inline table3d_axis_t table3d_axis_from_bytes(byte low, byte high)
+{
+    return (table3d_axis_t)(((uint16_t)high << 8U) | low);
+}
 
 /** @} */

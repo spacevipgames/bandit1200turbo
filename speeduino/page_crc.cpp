@@ -30,13 +30,13 @@ static inline uint32_t compute_tablevalues_crc(table_value_iterator it, pCrcCalc
 
 static inline uint32_t compute_tableaxis_crc(table_axis_iterator it, uint32_t crc, FastCRC32 &crcCalc)
 {
-    const table3d_axis_io_converter converter = get_table3d_axis_converter(it.get_domain());
-
-    byte values[32]; // Fingers crossed we don't have a table bigger than 32x32
+    byte values[32]; // 16 axis elements x 2 bytes: the biggest axis we have
     byte *pValue = values;
     while (!it.at_end())
     {
-        *pValue++ = converter.to_byte(*it);
+        // Same byte order as the TunerStudio page: little endian
+        *pValue++ = table3d_axis_get_byte(*it, 0U);
+        *pValue++ = table3d_axis_get_byte(*it, 1U);
         ++it;
     }
     return pValue-values==0 ? crc : crcCalc.crc32_upd(values, pValue-values, false);
